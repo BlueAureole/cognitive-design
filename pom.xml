@@ -1,0 +1,113 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.2.2</version>
+  </parent>
+  
+  <groupId>xyz.zhiwei</groupId>
+  <artifactId>cognitive-design</artifactId>
+  <version>0.0.3-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  
+  
+  <properties>
+	<maven.compiler.release>21</maven.compiler.release>
+  </properties>
+  
+  
+  
+
+	<distributionManagement>
+        <snapshotRepository>
+            <id>user-snapshot</id>
+            <name>User Porject Snapshot</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-snapshots/</url>
+            <uniqueVersion>true</uniqueVersion>
+        </snapshotRepository>
+        <repository>
+            <id>user-release</id>
+            <name>User Porject Release</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+
+
+  
+  
+  
+  
+  <modules>
+  
+  	<module>morphism</module>
+  	<module>service</module>
+  	<module>dao</module>
+  	
+  	<module>dao.impl\rdb</module>
+  	<module>dao.impl\session</module>
+  	<module>dao.impl\rpc</module>
+  </modules>
+  
+  
+	<dependencyManagement>
+		<dependencies>
+		
+  			<!--  ==========项目框架==========   -->
+  			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design</groupId>
+			  <artifactId>morphism</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design</groupId>
+			  <artifactId>truth</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design</groupId>
+			  <artifactId>service</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+			
+			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design</groupId>
+			  <artifactId>dao</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+			
+			
+  			<!--  ==========数据实现==========   -->
+  			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
+			  <artifactId>rdb</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+		
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
+			  <artifactId>session</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+			<dependency>
+			  <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
+			  <artifactId>rpc</artifactId>
+			  <version>0.0.3-SNAPSHOT</version>
+			</dependency>
+			
+		</dependencies>
+	</dependencyManagement>
+  
+  
+</project>

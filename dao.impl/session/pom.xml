@@ -1,0 +1,56 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  
+  
+  
+  <parent>
+    <groupId>xyz.zhiwei</groupId>
+    <artifactId>cognitive-design</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  
+  
+  
+  
+  <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
+  <artifactId>session</artifactId>
+  <name>dao-session</name>
+  
+  
+  
+	<dependencies>
+	
+	
+	
+  		<!--项目模块依赖 -->
+		<dependency>
+		  <groupId>xyz.zhiwei.cognitive-design</groupId>
+		  <artifactId>dao</artifactId>
+		</dependency>
+  
+  
+  
+  		<!-- ======================  Cache  ====================  -->
+		<dependency>
+		  <groupId>org.springframework.boot</groupId>
+		  <artifactId>spring-boot-starter-json</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		
+		
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+		</dependency>
+			
+  
+	</dependencies>
+  
+  
+  
+</project>

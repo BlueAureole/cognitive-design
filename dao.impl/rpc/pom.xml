@@ -1,0 +1,63 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  
+  <parent>
+    <groupId>xyz.zhiwei</groupId>
+    <artifactId>cognitive-design</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  
+  
+  <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
+  <artifactId>rpc</artifactId>
+  <name>dao-rpc</name>
+  
+  
+  
+	<dependencies>
+	
+	
+	
+  		<!--项目模块依赖 -->
+		<dependency>
+		  <groupId>xyz.zhiwei.cognitive-design</groupId>
+		  <artifactId>dao</artifactId>
+		</dependency>
+  
+  
+
+        <!-- 1. Spring Boot Web核心（内置JSON编解码、RestTemplate） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 2. Feign原生核心（12.4适配Spring Boot 3.2.2） -->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-core</artifactId>
+            <version>12.4</version>
+        </dependency>
+
+        <!-- 3. Feign Jackson编解码（JSON序列化） -->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-jackson</artifactId>
+            <version>12.4</version>
+        </dependency>
+
+        <!-- 4. Guava（驼峰↔下划线转换） -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.3-jre</version>
+        </dependency>
+		
+  
+  
+	</dependencies>
+  
+  
+  
+</project>
