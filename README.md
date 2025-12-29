@@ -15,6 +15,6 @@ cognitive-design
 - 认知式编程：透明依赖
 
 # 详情介绍
-- [认知程序设计](https://zhiwei.xyz/share/article/660683057505905664)
-- [认知程序设计实例](https://zhiwei.xyz/share/article/660684363226295296)
-- [认知设计实例详解](https://zhiwei.xyz/share/article/660685384740645888)
+- <a href="https://zhiwei.xyz/share/article/660683057505905664" target="_blank">认知程序设计</a>
+- <a href="https://zhiwei.xyz/share/article/660684363226295296" target="_blank">认知程序设计实例</a>
+- <a href="https://zhiwei.xyz/share/article/660685384740645888" target="_blank">认知设计实例详解</a>
