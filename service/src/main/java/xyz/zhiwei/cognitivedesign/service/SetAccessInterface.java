@@ -2,9 +2,11 @@ package xyz.zhiwei.cognitivedesign.service;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImage;
 import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImageResponse;
+import xyz.zhiwei.cognitivedesign.morphism.support.image.TransactionGroupList;
 import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifiers;
 import xyz.zhiwei.cognitivedesign.morphism.support.source.PrincipleSource;
 
@@ -26,14 +28,23 @@ public interface SetAccessInterface{
     public List<PrincipleSource> queryRelatedCollectionList(
     		List<Function<List<PrincipleSource>,PrincipleQualifiers>> qualifierFunctionList);
     
+    
+    
+    
+    
+
+	
 	/**
 	 * 存储相关数据集
 	 * 根据拆解函数列表，返回所有拆解目标的保存结果
 	 * @param deconstructFunctionList
+	 * @param transactionGroupSupplier 事务定义表
 	 * @return
 	 */
 	public List<PrincipleImageResponse> saveRelatedSegmentsList(
-			List<Function<List<PrincipleImageResponse>,PrincipleImage>> deconstructFunctionList);
+			List<Function<List<PrincipleImageResponse>,PrincipleImage>> deconstructFunctionList,
+			Supplier<TransactionGroupList> transactionGroupSupplier
+			);
     
     
     

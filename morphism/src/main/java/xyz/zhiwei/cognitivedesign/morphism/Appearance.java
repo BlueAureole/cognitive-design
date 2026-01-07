@@ -5,6 +5,7 @@ import java.util.function.Function;
 
 import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImage;
 import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImageResponse;
+import xyz.zhiwei.cognitivedesign.morphism.support.image.TransactionGroupList;
 import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifiers;
 import xyz.zhiwei.cognitivedesign.morphism.support.source.PrincipleSource;
 
@@ -84,7 +85,13 @@ public interface Appearance {
 		return new PrincipleImage();
 	};
 	
-	
+	/**
+	 * 事务标识组
+	 * @return
+	 */
+	default TransactionGroupList transactionGroupList() {
+		return new TransactionGroupList();
+	};
 
 	/*
 	 * ================================ 关系3： 表象变化实质是本原集变化(增删改) =============================

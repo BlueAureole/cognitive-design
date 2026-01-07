@@ -88,7 +88,7 @@ public class Service {
 		//解构
 		List<Function<List<PrincipleImageResponse>,PrincipleImage>> deconstructFunctionList=postAppearance.deconstructFunction();
 		//本原集存储
-		List<PrincipleImageResponse> saveResponseList=setAccessImpl.saveRelatedSegmentsList(deconstructFunctionList);
+		List<PrincipleImageResponse> saveResponseList=setAccessImpl.saveRelatedSegmentsList(deconstructFunctionList,postAppearance::transactionGroupList);
 		return new MorphismResponse<A>(postAppearance,saveResponseList);
 	}
 

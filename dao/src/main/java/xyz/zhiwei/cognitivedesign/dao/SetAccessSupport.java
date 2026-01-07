@@ -2,31 +2,28 @@ package xyz.zhiwei.cognitivedesign.dao;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import jakarta.annotation.PostConstruct;
@@ -51,8 +48,8 @@ public class SetAccessSupport{
     private ApplicationContext applicationContext;
 
     // 数据源
-    @Autowired
-    private DataSource dataSource;
+    //@Autowired
+    //private DataSource dataSource;
     
     //查询线程池
     @Autowired
@@ -164,66 +161,45 @@ public class SetAccessSupport{
         return result;
     }
 	
+    /**
+     * 存储相关数据集（核心：根据事务组找到专属线程池执行）
+     */
+    public PrincipleImageResponse saveRelatedSegments(
+            PrincipleImage relatedSegments,
+            Map<Integer, Integer> transactionGroupMap,
+            Map<Integer, TransactionStatus> transactionMap,
+            Map<Integer, ThreadPoolTaskExecutor> groupExecutorMap) {
 
-	/**
-	 * 存储相关数据集
-     * 单条处理方法：独立事务粒度（核心改造：并行执行+事务注解）
-     * 事务属性：REQUIRED（每次调用创建新事务）、READ_COMMITTED、所有异常回滚
-	 * @param <P>
-	 * @param relatedSegments
-	 * @return
-	 */
-    @Transactional(propagation = Propagation.REQUIRED,
-                   isolation = Isolation.READ_COMMITTED,
-                   rollbackFor = Exception.class) 
-    PrincipleImageResponse saveRelatedSegments(PrincipleImage relatedSegments) {
         if (null == relatedSegments) {
             return new PrincipleImageResponse();
         }
 
-        // ========== 1. 主线程预取事务上下文（核心：只取一次，传递到所有异步） ==========
-        Object mainTransaction = TransactionSynchronizationManager.getResource(dataSource);
-        log.info("主线程预取事务上下文：{}，线程：{}", mainTransaction, Thread.currentThread().getName());
+        // 1. 定义异步任务：按事务组找专属线程执行
+        CompletableFuture<Map<Integer, Long>> addFuture = CompletableFuture.supplyAsync(() ->
+                handleRelatedCollection(relatedSegments.getAddition(), Dao::add, transactionGroupMap, transactionMap, groupExecutorMap),
+                this.daoSaveExecutor);
 
-        // ========== 2. 第一级异步：传递mainTransaction到handleRelatedCollection ==========
-        
-        // 1. 定义三个操作的异步任务
-        CompletableFuture<Map<Integer, Long>> addFuture = CompletableFuture.supplyAsync(() -> 
-            handleRelatedCollection(relatedSegments.getAddition(), Dao::add,mainTransaction), this.daoSaveExecutor
-        );
-        
-        CompletableFuture<Map<Integer, Long>> modifyFuture = CompletableFuture.supplyAsync(() -> 
-            handleRelatedCollection(relatedSegments.getModification(), Dao::update,mainTransaction), this.daoSaveExecutor
-        );
-        
-        CompletableFuture<Map<Integer, Long>> delFuture = CompletableFuture.supplyAsync(() -> 
-            handleRelatedCollection(relatedSegments.getDeletion(), Dao::delete,mainTransaction), this.daoSaveExecutor
-        );
-        
-        // 2. 等待所有并行任务完成
+        CompletableFuture<Map<Integer, Long>> modifyFuture = CompletableFuture.supplyAsync(() ->
+                handleRelatedCollection(relatedSegments.getModification(), Dao::update, transactionGroupMap, transactionMap, groupExecutorMap),
+                this.daoSaveExecutor);
+
+        CompletableFuture<Map<Integer, Long>> delFuture = CompletableFuture.supplyAsync(() ->
+                handleRelatedCollection(relatedSegments.getDeletion(), Dao::delete, transactionGroupMap, transactionMap, groupExecutorMap),
+                this.daoSaveExecutor);
+
+        // 2. 等待所有任务完成
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(addFuture, modifyFuture, delFuture);
-        
         try {
-            // 3. 等待结果（设置超时时间，与内部保持一致30秒）
             allFutures.get(timeout, TimeUnit.SECONDS);
-            
-            // 4. 获取各任务结果并组装响应
-            Map<Integer, Long> addCount = addFuture.join();
-            Map<Integer, Long> modifyCount = modifyFuture.join();
-            Map<Integer, Long> delCount = delFuture.join();
-            
-            return new PrincipleImageResponse(addCount, modifyCount, delCount);
+            return new PrincipleImageResponse(addFuture.join(), modifyFuture.join(), delFuture.join());
         } catch (Exception e) {
-            // 5. 处理异常（取消所有未完成任务）
             addFuture.cancel(true);
             modifyFuture.cancel(true);
             delFuture.cancel(true);
-            
             Throwable rootCause = e instanceof CompletionException ? e.getCause() : e;
             throw new RuntimeException("并行处理新增/修改/删除操作失败", rootCause);
         }
     }
-
     
     
     
@@ -231,120 +207,165 @@ public class SetAccessSupport{
 	 * =================================================私有方法区===============================================================
 	 */
 	
-    
-    
     /**
-     * 并行批量写入/远程调用方法（基于Spring线程池，任一异常抛异常由上层回滚）
-     * @param relatedCollection 待处理的批量数据
-     * @param handleFunction 具体的写入/调用逻辑（Dao/HTTP客户端 + 数据列表 → 处理条数）
-     * @param mainTransaction 主线程的事务上下文（新增参数，传递事务）
-     * @return 每个索引对应的处理条数（仅全部成功返回；任一失败抛异常）
-     * @throws RuntimeException 任一操作失败时抛出，包含失败批次、原因等上下文
+     * 核心处理：数据项并行处理（有事务的在专属线程池执行，无事务的直接并行）
      */
     private Map<Integer, Long> handleRelatedCollection(
             List<List<? extends Principle<?>>> relatedCollection,
             @SuppressWarnings("rawtypes") BiFunction<Dao<?>, List, Long> handleFunction,
-            Object mainTransaction) { // 新增：接收主线程的事务上下文
-        // 入参空值兜底（原有逻辑保留）
-        if (null == relatedCollection || relatedCollection.isEmpty()) {
-            return new HashMap<>();
+            Map<Integer, Integer> transactionGroupMap,
+            Map<Integer, TransactionStatus> transactionMap,
+            Map<Integer, ThreadPoolTaskExecutor> groupExecutorMap) {
+
+        // 最终结果映射（保持原索引顺序）
+        Map<Integer, Long> resultMap = new ConcurrentHashMap<>();
+        // 用于存储所有异步任务，等待全部完成
+        List<CompletableFuture<Void>> allFutures = new ArrayList<>();
+
+        // ========== 第一步：预处理 - 分组（事务组/无事务） ==========
+        // 1. 按事务组分组：key=事务组编号（null代表无事务），value=子列表+索引的集合
+        Map<Integer, List<IndexedSubList>> groupToSubLists = new HashMap<>();
+        for (int i = 0; i < relatedCollection.size(); i++) {
+            List<? extends Principle<?>> subList = relatedCollection.get(i);
+            if (null == subList || subList.isEmpty()) {
+                resultMap.put(i, 0L); // 空列表直接标记0，无需处理
+                continue;
+            }
+            // 获取子列表所属事务组
+            Integer groupNum = transactionGroupMap.get(System.identityHashCode(subList));
+            // 分组存储（key=null代表无事务）
+            groupToSubLists.computeIfAbsent(groupNum, k -> new ArrayList<>())
+                    .add(new IndexedSubList(i, subList));
         }
 
-        int batchSize = relatedCollection.size();
-        AtomicReferenceArray<Long> resultArray = new AtomicReferenceArray<>(batchSize);
-        AtomicBoolean hasException = new AtomicBoolean(false);
-        List<CompletableFuture<Void>> futures = new ArrayList<>(batchSize);
+        // ========== 第二步：并行处理各组数据 ==========
+        for (Map.Entry<Integer, List<IndexedSubList>> entry : groupToSubLists.entrySet()) {
+            Integer groupNum = entry.getKey();
+            List<IndexedSubList> indexedSubLists = entry.getValue();
 
-        try {
-            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
-                if (hasException.get()) {
-                    break;
+            if (groupNum == null) {
+                // ---------- 无事务组：直接并行处理 ----------
+                for (IndexedSubList indexedSubList : indexedSubLists) {
+                    int index = indexedSubList.getIndex();
+                    List<? extends Principle<?>> subList = indexedSubList.getSubList();
+
+                    // 无事务的子列表，用公共线程池并行执行
+                    CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                        try {
+                            long count = handleRelatedList(subList, handleFunction);
+                            resultMap.put(index, count);
+                            log.debug("无事务子列表[{}]执行完成，数据量：{}", index, subList.size());
+                        } catch (Exception e) {
+                            log.error("无事务子列表[{}]执行失败", index, e);
+                            resultMap.put(index, -1L);
+                        }
+                    }, this.daoSaveExecutor); // 公共线程池
+
+                    allFutures.add(future);
                 }
-                int finalIndex = batchIndex;
+            } else {
+                // ---------- 有事务组：在专属线程池串行执行（保证事务原子性） ----------
+            	ThreadPoolTaskExecutor groupExecutor = groupExecutorMap.get(groupNum);
+                TransactionStatus txStatus = transactionMap.get(groupNum);
+                if (groupExecutor == null || txStatus == null) {
+                    // 事务组配置异常，降级为无事务并行处理
+                    for (IndexedSubList indexedSubList : indexedSubLists) {
+                        int index = indexedSubList.getIndex();
+                        List<? extends Principle<?>> subList = indexedSubList.getSubList();
 
-                // 原有异步逻辑保留，但新增事务上下文传递
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    // ========== 关键：每个批次异步线程绑定主线程的事务上下文 ==========
-                    if (mainTransaction != null) {
-                        TransactionSynchronizationManager.bindResource(dataSource, mainTransaction);
-                        log.info("【handleRelatedCollection-批次{}】绑定主线程事务上下文，线程：{}",
-                                finalIndex, Thread.currentThread().getName());
-                    }
-
-                    try {
-                        // 调用executeInTransactionContext，此时已有事务上下文
-                        executeInTransactionContext(() -> {
-                            if (hasException.get()) {
-                                return null; // 无返回值，用null占位
-                            }
-
-                            List<? extends Principle<?>> relatedList = relatedCollection.get(finalIndex);
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                             try {
-                                Long updateCount = 0L;
-                                if (null != relatedList && relatedList.stream().anyMatch(Objects::nonNull)) {
-                                    List<? extends Principle<?>> notNullList = relatedList.stream()
-                                            .filter(Objects::nonNull)
-                                            .collect(Collectors.toList());
-                                    updateCount = handleRelatedList(notNullList, handleFunction);
-                                    if (updateCount == null) {
-                                        throw new IllegalStateException("第" + finalIndex + "批次处理结果为空，判定为执行失败");
-                                    }
-                                }
-                                resultArray.set(finalIndex, updateCount);
+                                long count = handleRelatedList(subList, handleFunction);
+                                resultMap.put(index, count);
                             } catch (Exception e) {
-                                if (hasException.compareAndSet(false, true)) {
-                                    String errorMsg = String.format("第%d个批次处理失败，已终止所有后续任务", finalIndex);
-                                    log.error(errorMsg, e);
-                                    futures.forEach(f -> f.cancel(true));
-                                    throw new CompletionException(new RuntimeException(errorMsg, e));
-                                }
+                                log.error("事务组{}配置异常，子列表[{}]执行失败", groupNum, index, e);
+                                resultMap.put(index, -1L);
                             }
-                            return null; // 无返回值，用null占位
+                        }, this.daoSaveExecutor);
+
+                        allFutures.add(future);
+                    }
+                    continue;
+                }
+
+                // 事务组内串行执行（避免同一事务并发问题），外层仍并行
+                CompletableFuture<Void> groupFuture = CompletableFuture.runAsync(() -> {
+                    // 在专属线程池中串行处理该事务组的所有子列表
+                    for (IndexedSubList indexedSubList : indexedSubLists) {
+                        int index = indexedSubList.getIndex();
+                        List<? extends Principle<?>> subList = indexedSubList.getSubList();
+
+                        CountDownLatch executeLatch = new CountDownLatch(1);
+                        AtomicReference<Long> countRef = new AtomicReference<>(0L);
+                        AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+
+                        // 提交到事务组专属线程（保证事务上下文绑定）
+                        groupExecutor.submit(() -> {
+                            try {
+                                // 验证事务上下文是否绑定（可选，用于日志）
+                                boolean hasTx = TransactionSynchronizationManager.isActualTransactionActive();
+                                log.debug("事务组{}子列表[{}]在专属线程{}执行，事务绑定：{}",
+                                        groupNum, index, Thread.currentThread().threadId(), hasTx);
+                                // 执行存储操作（自动归属到该线程的事务上下文）
+                                countRef.set(handleRelatedList(subList, handleFunction));
+                            } catch (Exception e) {
+                                exceptionRef.set(e);
+                            } finally {
+                                executeLatch.countDown();
+                            }
                         });
-                    } finally {
-                        // ========== 关键：每个批次异步线程解除事务上下文绑定 ==========
-                        if (mainTransaction != null && TransactionSynchronizationManager.hasResource(dataSource)) {
-                            TransactionSynchronizationManager.unbindResource(dataSource);
-                            log.info("【handleRelatedCollection-批次{}】解除事务上下文绑定，线程：{}",
-                                    finalIndex, Thread.currentThread().getName());
+
+                        // 等待当前子列表执行完成（串行关键）
+                        try {
+                            executeLatch.await(10, TimeUnit.SECONDS);
+                            if (exceptionRef.get() != null) {
+                                throw exceptionRef.get();
+                            }
+                            resultMap.put(index, countRef.get());
+                        } catch (Exception e) {
+                            log.error("事务组{}子列表[{}]执行失败", groupNum, index, e);
+                            resultMap.put(index, -1L);
+                            // 事务组内一个子列表失败，中断后续执行（保证原子性）
+                            throw new RuntimeException("事务组" + groupNum + "执行失败，中断处理", e);
                         }
                     }
-                }, this.daoSaveExecutor); // 仍使用原有线程池
+                }, this.daoSaveExecutor); // 外层并行控制
 
-                futures.add(future);
-            }
-
-            // 等待所有任务完成（原有逻辑保留）
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(timeout, TimeUnit.SECONDS);
-
-            // 组装结果（原有逻辑保留）
-            Map<Integer, Long> updateCountMap = new HashMap<>(batchSize);
-            for (int i = 0; i < batchSize; i++) {
-                updateCountMap.put(i, Optional.ofNullable(resultArray.get(i)).orElse(0L));
-            }
-            return updateCountMap;
-
-        } catch (Exception e) {
-            // 异常处理（原有逻辑保留）
-            Throwable rootCause = e instanceof CompletionException ? e.getCause() : e;
-            if (rootCause == null) {
-                rootCause = e;
-            }
-            throw new RuntimeException("并行批量处理失败，已终止所有任务", rootCause);
-        } finally {
-            // 清理逻辑（原有逻辑保留）
-            if (hasException.get()) {
-                futures.forEach(f -> {
-                    if (!f.isDone()) {
-                        f.cancel(true);
-                    }
-                });
+                allFutures.add(groupFuture);
             }
         }
+
+        // ========== 第三步：等待所有任务完成 ==========
+        try {
+            // 等待所有异步任务完成，设置超时时间
+            CompletableFuture.allOf(allFutures.toArray(new CompletableFuture[0]))
+                    .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("并行处理relatedCollection失败", e);
+            // 取消所有未完成任务
+            allFutures.forEach(future -> future.cancel(true));
+            // 标记所有未处理的索引为失败
+            for (int i = 0; i < relatedCollection.size(); i++) {
+                resultMap.putIfAbsent(i, -1L);
+            }
+        }
+
+        // ========== 第四步：补全空索引（保证结果顺序和原列表一致） ==========
+        for (int i = 0; i < relatedCollection.size(); i++) {
+            resultMap.putIfAbsent(i, 0L);
+        }
+
+        // 按索引排序返回（保证和输入列表顺序一致）
+        return resultMap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (oldVal, newVal) -> oldVal,
+                        LinkedHashMap::new
+                ));
     }
-	
-	
+		
 	/**
 	 * 存储子列表
 	 * （借助入参套出泛型）
@@ -353,7 +374,8 @@ public class SetAccessSupport{
 	 * @param applicationContext
 	 * @return
 	 */
-	private <R extends Principle<?>> Long handleRelatedList(List<R> relatedList,@SuppressWarnings("rawtypes") BiFunction<Dao<?>, List, Long> handleFunction) {
+	private <R extends Principle<?>> Long handleRelatedList(List<R> relatedList,
+			@SuppressWarnings("rawtypes") BiFunction<Dao<?>, List, Long> handleFunction) {
 		if (null==relatedList || relatedList.isEmpty()) {
 			return 0L;
 		}
@@ -367,19 +389,26 @@ public class SetAccessSupport{
 	
 
 	/*
-	 * ==================================辅助方法区: 事务支持==============================
+	 * ================================== 事务辅助区 ==============================
 	 */
-	// 事务上下文传递工具方法
-	private <T> T executeInTransactionContext(Supplier<T> supplier) {
-	    // ========== 原有逻辑：执行supplier（无返回值时返回null） ==========
-	    try {
-	        return supplier.get();
-	    } catch (Exception e) {
-	        throw new RuntimeException("executeInTransactionContext执行失败", e);
+	// ========== 辅助类：存储子列表+原索引（保证结果顺序） ==========
+	private static class IndexedSubList {
+	    private final int index;
+	    private final List<? extends Principle<?>> subList;
+
+	    public IndexedSubList(int index, List<? extends Principle<?>> subList) {
+	        this.index = index;
+	        this.subList = subList;
+	    }
+
+	    public int getIndex() {
+	        return index;
+	    }
+
+	    public List<? extends Principle<?>> getSubList() {
+	        return subList;
 	    }
 	}
-
-	
 	
 	/*
 	 * ==================================辅助方法区: 确定类型==============================
