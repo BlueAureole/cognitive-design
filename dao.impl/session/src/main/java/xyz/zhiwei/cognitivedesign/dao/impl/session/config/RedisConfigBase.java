@@ -38,7 +38,7 @@ public abstract class RedisConfigBase {
     /**
      * 获取Redis连接工厂（单例模式）- 强制配置，未配置则抛异常
      */
-    protected RedisConnectionFactory getRedisConnectionFactory() {
+	protected RedisConnectionFactory getRedisConnectionFactory() {
         if (this.connectionFactory != null) {
             return this.connectionFactory;
         }

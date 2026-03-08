@@ -1,37 +1,69 @@
 package xyz.zhiwei.cognitivedesign.dao.impl.rpc;
 
-import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Executor;
 
-import xyz.zhiwei.cognitivedesign.dao.BaseDaoImpl;
+import javax.sql.XADataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import xyz.zhiwei.cognitivedesign.dao.accessimpl.CustomWriteThreadPool;
+import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.TransactionAdapterInterface;
+import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.TransactionRecordDao;
+import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.synchronization.RpcTxWorkExecutorHolder;
+import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.synchronization.TransactionAdapter;
 import xyz.zhiwei.cognitivedesign.morphism.Principle;
 
 
 
 /**
- * 
  * @updateBy zhanghaiting
- * TODO 
- *    1  添加认证信息
- *    2  实现事务支持(表记录)
- * 
  * @param <P>
  */
-public class BaseRpcDaoImpl<P extends Principle<Long>> extends BaseDaoImpl<P> {
+public class BaseRpcDaoImpl<P extends Principle<Long>> extends BaseMsgTxDaoImpl<P> {
 
-	@Override
-	protected Long addList(List<P> list) {
-		return null;
-	}
+	@Autowired
+	private TransactionRecordDao transactionRecordDao;
 
-	@Override
-	protected Long updateList(List<P> list) {
-		return null;
-	}
-
-	@Override
-	protected Long deleteList(List<P> list) {
-		return null;
-	}
-    
+	@Autowired
+	private RpcTxWorkExecutorHolder rpcTxWorkExecutorHolder;
 	
+	@Override
+	public XADataSource getXADataSource() {
+		return transactionRecordDao.getXADataSource();
+	}
+
+	@Override
+	protected TransactionRecordDao getTransactionRecordDao() {
+		return transactionRecordDao;
+	}
+	
+	@Override
+	protected TransactionAdapterInterface getTransactionAdapterInterface() {
+		Executor executor = rpcTxWorkExecutorHolder.getRpcTxWorkExecutor();
+		if (this instanceof CustomWriteThreadPool) {
+			Executor customExecutor = ((CustomWriteThreadPool) this).getWriteExecutor();
+			if (customExecutor != null) {
+				executor = customExecutor;
+			}
+		}
+		return new TransactionAdapter(executor);
+	}
+
+	
+	/*
+	 * ==============可根据需要重写=====
+	 */
+
+	@Override
+	public Object getTransactionVisibilityKey() {
+		return UUID.randomUUID().toString();
+	}
+	@Override
+	protected String getTransactionKey() {
+		return "tn-"+UUID.randomUUID().toString();
+	}
+
+
+
 }

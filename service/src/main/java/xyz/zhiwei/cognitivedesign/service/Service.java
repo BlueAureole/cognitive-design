@@ -1,7 +1,6 @@
 package xyz.zhiwei.cognitivedesign.service;
 
 import java.util.List;
-import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +9,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import xyz.zhiwei.cognitivedesign.morphism.Appearance;
-import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImage;
-import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImageResponse;
-import xyz.zhiwei.cognitivedesign.morphism.support.source.PrincipleSource;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.ImagePackage;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.response.ResponsePackage;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.container.PrincipleSourceLane;
 
 
 /**
@@ -22,15 +21,14 @@ import xyz.zhiwei.cognitivedesign.morphism.support.source.PrincipleSource;
  */
 public class Service {
     private static final Logger logger = LoggerFactory.getLogger(Service.class);
-    private final ObjectMapper objectMapper;
-	
-
+    
 	//本原集存取接口
-    private SetAccessInterface setAccessImpl;
+    private PrincipleAccessInterface setAccessImpl;
+    private final ObjectMapper objectMapper;
     
     
     //构造方法
-    public Service(SetAccessInterface setAccessImpl,ObjectMapper objectMapper) {
+    public Service(PrincipleAccessInterface setAccessImpl,ObjectMapper objectMapper) {
     	this.setAccessImpl=setAccessImpl;
     	this.objectMapper=objectMapper;
     }
@@ -47,7 +45,7 @@ public class Service {
 		logger.info("initial a is {}:",toJson(a));
 		
 		//本原集获取
-		List<PrincipleSource> relatedCollectionList=setAccessImpl.queryRelatedCollectionList(a.qualifierFunction());
+		List<PrincipleSourceLane> relatedCollectionList=setAccessImpl.query(a.qualifiersLanes());
 		
 		
 		//构造
@@ -70,7 +68,7 @@ public class Service {
 	public <A extends Appearance> MorphismResponse<A> process(A a){
 		logger.info("initial a is {}:",toJson(a));
 		//本原集获取
-		List<PrincipleSource> relatedCollectionList=setAccessImpl.queryRelatedCollectionList(a.qualifierFunction());
+		List<PrincipleSourceLane> relatedCollectionList=setAccessImpl.query(a.qualifiersLanes());
 		//构造
 		@SuppressWarnings("unchecked")
 		A preAppearance=(A) a.construct(relatedCollectionList);
@@ -86,10 +84,10 @@ public class Service {
 		
 		
 		//解构
-		List<Function<List<PrincipleImageResponse>,PrincipleImage>> deconstructFunctionList=postAppearance.deconstructFunction();
+		ImagePackage imagePackage=postAppearance.deconstruct();
 		//本原集存储
-		List<PrincipleImageResponse> saveResponseList=setAccessImpl.saveRelatedSegmentsList(deconstructFunctionList,postAppearance::transactionGroupList);
-		return new MorphismResponse<A>(postAppearance,saveResponseList);
+		ResponsePackage responsePackage=setAccessImpl.save(imagePackage);
+		return new MorphismResponse<A>(postAppearance,responsePackage);
 	}
 
 
@@ -106,7 +104,7 @@ public class Service {
         try {
             return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-        	logger.error("JSON序列化失败", e);
+        	logger.error("Service 标准流程日志，JSON序列化失败", e);
             return null; 
         }
     }

@@ -3,7 +3,8 @@ package xyz.zhiwei.cognitivedesign.dao;
 import java.util.List;
 
 import xyz.zhiwei.cognitivedesign.morphism.Principle;
-import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifier;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.PrincipleImagery;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.qualifier.PrincipleQualifier;
 
 
 
@@ -14,14 +15,11 @@ import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifier;
  * @updateBy zhanghaiting
  * @param <P>
  */
-public interface Dao<P extends Principle<?>> {
+public interface Dao<P extends Principle<?>>{
 
-    public List<P> subCollection(PrincipleQualifier<P> qualifier);
+    List<P> subCollection(PrincipleQualifier<P> qualifier);
     
-    public Long add(List<P> list);
+    Long save(PrincipleImagery<P> principleImagery);
     
-    public Long update(List<P> list);
-    
-    public Long delete(List<P> list);
 	
 }

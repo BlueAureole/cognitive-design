@@ -16,9 +16,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import xyz.zhiwei.cognitivedesign.dao.Dao;
+import xyz.zhiwei.cognitivedesign.dao.daoimpl.methodcache.SaveMethodPrefixEnum;
 import xyz.zhiwei.cognitivedesign.dao.impl.session.config.RedisConfigSession;
 import xyz.zhiwei.cognitivedesign.morphism.Principle;
-import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifier;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.PrincipleImagery;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.qualifier.PrincipleQualifier;
 
 
 
@@ -50,8 +52,6 @@ public class BaseSessionDaoImpl<P extends Principle<String>> implements Dao<P> {
     }
     
     
-    
-    
 	//==========================================接口集===========================================
 	
 	
@@ -69,37 +69,40 @@ public class BaseSessionDaoImpl<P extends Principle<String>> implements Dao<P> {
 	}
 
 	
-	@Override
-	public Long add(List<P> list) {
-		int cc=0;
-		for(P p:list) {
-			cc+=saveSession(p);
-		}
-		return Long.valueOf(cc);
-	}
-
-
-	@Override
-	public Long update(List<P> list) {
-		return add(list);
-	}
+	
 	
 
 	@Override
-	public Long delete(List<P> list) {
+	public Long save(PrincipleImagery<P> principleImagery) {
+		String desc=principleImagery.getDescribe();
+
 		int cc=0;
-		for(P p:list) {
-			cc+=invalidate(p);
+		
+		if(SaveMethodPrefixEnum.isAddName(desc)||SaveMethodPrefixEnum.isUpdateName(desc)) {
+			for(P p:principleImagery) {
+				cc+=saveSession(p);
+			}
+			return Long.valueOf(cc);
 		}
-		return Long.valueOf(cc);
-	}
+
+		if(SaveMethodPrefixEnum.isDeleteName(desc)) {
+			for(P p:principleImagery) {
+				cc+=invalidate(p);
+			}
+			return Long.valueOf(cc);
+		}
+		
+		return 0L;
+    }
+
+
 	
 	/*
 	 * ===============================  session生命周期方法 ============================================
 	 */
 
     // ========== 保存方法（使用缓存的泛型类型，可选：仅校验类型） ==========
-    protected Integer saveSession(P p) {
+	protected Integer saveSession(P p) {
         // 1. 空值+类型校验（可选，确保存入的是目标类型）
         Assert.notNull(p, "会话模型P不能为空");
         Assert.notNull(p.getId(), "会话模型P的token(id)不能为空");
@@ -118,7 +121,7 @@ public class BaseSessionDaoImpl<P extends Principle<String>> implements Dao<P> {
     }
 
     // ========== 获取方法（直接使用缓存的泛型类型） ==========
-    protected P getSessionAttribute(P p) {
+	protected P getSessionAttribute(P p) {
         // 1. 空值校验
         if (p == null || p.getId() == null) {
             return null;
@@ -127,7 +130,7 @@ public class BaseSessionDaoImpl<P extends Principle<String>> implements Dao<P> {
 
         try {
             // 从Redis读取纯JSON字符串
-            String pureJson = (String) redisTemplate.opsForValue().get(token);
+			String pureJson = (String) redisTemplate.opsForValue().get(token);
             if (pureJson == null) {
                 return null;
             }

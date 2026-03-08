@@ -1,13 +1,17 @@
 package xyz.zhiwei.cognitivedesign.morphism;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
 
-import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImage;
-import xyz.zhiwei.cognitivedesign.morphism.support.image.PrincipleImageResponse;
-import xyz.zhiwei.cognitivedesign.morphism.support.image.TransactionGroupList;
-import xyz.zhiwei.cognitivedesign.morphism.support.qualifier.PrincipleQualifiers;
-import xyz.zhiwei.cognitivedesign.morphism.support.source.PrincipleSource;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.ImageLane;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.ImageLaneGroup;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.ImagePackage;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.container.PrincipleImage;
+import xyz.zhiwei.cognitivedesign.morphism.principle.image.response.ImageResponse;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.container.PrincipleSource;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.container.PrincipleSourceLane;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.qualifier.PrincipleQualifiers;
+import xyz.zhiwei.cognitivedesign.morphism.principle.source.qualifier.QualifiersLane;
 
 /**
  * 表象
@@ -20,20 +24,20 @@ public interface Appearance {
 
 	/**
 	 * 关系1：表象所关联的本原集(定义)
-	 * 查询条件函数列表
-	 * 每一个查询条件都可能依赖前面所有的查询结果集
+	 * 查询泳道列表
 	 * @return
 	 */
-	default List<Function<List<PrincipleSource>,PrincipleQualifiers>> qualifierFunction(){
-		return List.of(this::qualifierGroup1st);
+	default List<QualifiersLane> qualifiersLanes(){
+		return Arrays.asList(new QualifiersLane(this::qualifiersLaneA1st));
 	}
+	
 	/**
 	 * 关系1：表象所关联的本原集(定义)
 	 * 默认的第一个查询条件（无依赖）
 	 * @param principleSourceList
 	 * @return
 	 */
-	default PrincipleQualifiers qualifierGroup1st(List<PrincipleSource> principleSourceList) {
+	default PrincipleQualifiers qualifiersLaneA1st(List<PrincipleSource> principleSourceList) {
 		return new PrincipleQualifiers();
 	};
 	
@@ -45,53 +49,31 @@ public interface Appearance {
 	
 	/**
 	 * 关系2之一：表象由本原集构造而成
-	 * 入参列表对应上面的查询函数列表
+	 * 入参列表对应上面的查询泳道列表
 	 * @param principleSourceList
 	 * @return
 	 */
-	default Appearance construct(List<PrincipleSource> principleSourceList){
-		if(null!=principleSourceList && !principleSourceList.isEmpty()) {
-			return construct(principleSourceList.getFirst());
-		}
+	default Appearance construct(List<PrincipleSourceLane> principleSourceLaneList){
 		return this;
 	};
-	/**
-	 * 关系2之一：表象由本原集构造而成
-	 * 默认的第一个入参
-	 * @param principleSource
-	 * @return
-	 */
-	default Appearance construct(PrincipleSource principleSource) {
-		return this;
-	};
-
-	
-	
 	
 	/**
 	 * 关系2之二：本原集由表象拆解而来
-	 * 拆解函数列表
-	 * 每一个拆解函数都可能依赖前面所有的存储结果
-	 * @return
+	 * @return 映象包
 	 */
-	default List<Function<List<PrincipleImageResponse>,PrincipleImage>> deconstructFunction(){
-		return List.of(this::deconstruct);
+	default ImagePackage deconstruct(){
+		return new ImagePackage(new ImageLaneGroup(new ImageLane(this::deconstructLaneA1st)));
 	}
+	
 	/**
 	 * 关系2之二：本原集由表象拆解而来
 	 * @return
 	 */
-	default PrincipleImage deconstruct(List<PrincipleImageResponse> principleImageResponseList) {
+	default PrincipleImage deconstructLaneA1st(List<ImageResponse> ImageResponseList) {
 		return new PrincipleImage();
 	};
 	
-	/**
-	 * 事务标识组
-	 * @return
-	 */
-	default TransactionGroupList transactionGroupList() {
-		return new TransactionGroupList();
-	};
+	
 
 	/*
 	 * ================================ 关系3： 表象变化实质是本原集变化(增删改) =============================

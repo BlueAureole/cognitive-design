@@ -1,14 +1,37 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   
-  <parent>
-    <groupId>xyz.zhiwei</groupId>
-    <artifactId>cognitive-design</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
-  </parent>
   
   <groupId>xyz.zhiwei.cognitive-design</groupId>
   <artifactId>service</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  
+  
+  <properties>
+	<maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  
+  
+  
+
+	<distributionManagement>
+        <snapshotRepository>
+            <id>user-snapshot</id>
+            <name>User Porject Snapshot</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-snapshots/</url>
+            <uniqueVersion>true</uniqueVersion>
+        </snapshotRepository>
+        <repository>
+            <id>user-release</id>
+            <name>User Porject Release</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+
+
+  
   
   
   
@@ -19,6 +42,7 @@
   		<dependency>
 		  <groupId>xyz.zhiwei.cognitive-design</groupId>
 		  <artifactId>morphism</artifactId>
+  		  <version>0.1.0-SNAPSHOT</version>
 		</dependency>
 		
 	  
@@ -26,10 +50,13 @@
 	  <dependency>
 	    <groupId>org.slf4j</groupId>
 	    <artifactId>slf4j-api</artifactId>
+    	<version>2.0.11</version>
 	  </dependency>
+	  
 	  <dependency>
 	    <groupId>com.fasterxml.jackson.core</groupId>
 	    <artifactId>jackson-databind</artifactId>
+        <version>2.15.3</version>
 	  </dependency>
   
   

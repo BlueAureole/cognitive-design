@@ -3,21 +3,35 @@
   
   
   
-  <parent>
-    <groupId>xyz.zhiwei</groupId>
-    <artifactId>cognitive-design</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
-    <relativePath>../../pom.xml</relativePath>
-  </parent>
-  
-  
-  
-  
   <groupId>xyz.zhiwei.cognitive-design.dao.impl</groupId>
   <artifactId>session</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
   <name>dao-session</name>
   
   
+  <properties>
+	<maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  
+  
+
+	<distributionManagement>
+        <snapshotRepository>
+            <id>user-snapshot</id>
+            <name>User Porject Snapshot</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-snapshots/</url>
+            <uniqueVersion>true</uniqueVersion>
+        </snapshotRepository>
+        <repository>
+            <id>user-release</id>
+            <name>User Porject Release</name>
+            <url>http://nexus.guanghuanxueshu.net/repository/maven-releases/</url>
+        </repository>
+    </distributionManagement>
+
+
   
 	<dependencies>
 	
@@ -27,6 +41,7 @@
 		<dependency>
 		  <groupId>xyz.zhiwei.cognitive-design</groupId>
 		  <artifactId>dao</artifactId>
+  		  <version>0.1.0-SNAPSHOT</version>
 		</dependency>
   
   
@@ -35,17 +50,20 @@
 		<dependency>
 		  <groupId>org.springframework.boot</groupId>
 		  <artifactId>spring-boot-starter-json</artifactId>
+          <version>3.2.2</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>3.2.2</version>
 		</dependency>
 		
 		
 		<dependency>
 			<groupId>redis.clients</groupId>
 			<artifactId>jedis</artifactId>
+    		<version>5.0.2</version>
 		</dependency>
 			
   
