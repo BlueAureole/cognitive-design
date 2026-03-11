@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
@@ -40,6 +42,9 @@ import xyz.zhiwei.cognitivedesign.dao.impl.rpc.feign.TransactionIdContext;
  */
 //@Configuration
 public class BaseFeignConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(BaseFeignConfig.class);
+    private static final int MAX_LOG_CHARACTERS = 8_000;
 
     // 全局Jackson实例（保证序列化配置统一）
     @Autowired
@@ -161,7 +166,7 @@ public class BaseFeignConfig {
 
             @Override
             public void encode(Object object, Type bodyType, RequestTemplate template) throws EncodeException {
-                String configKey = template.feignTarget().name() + "#" + template.methodMetadata().configKey();
+                String configKey = template.methodMetadata().configKey();
                 Class<?> cachedType = METHOD_BODY_TYPE_CACHE.get(configKey);
                 
                 Type actualType = cachedType != null ? cachedType : 
@@ -169,6 +174,11 @@ public class BaseFeignConfig {
                 
                 if (actualType == null) {
                     throw new EncodeException("Request body and bodyType are both null");
+                }
+
+                if (log.isInfoEnabled()) {
+                    String requestUrl = safeRequestUrl(template);
+                    log.info("Feign -> {} {} configKey={} body={}", template.method(), requestUrl, configKey, serializeForLog(object));
                 }
                 delegate.encode(object, actualType, template);
             }
@@ -193,10 +203,46 @@ public class BaseFeignConfig {
                 if (actualReturnType == null) {
                     throw new EncodeException("Return type is null for method: " + configKey);
                 }
+
                 // 3. 用缓存的返回值类型解码
-                return delegate.decode(response, actualReturnType);
+                Object decoded = delegate.decode(response, actualReturnType);
+                if (log.isInfoEnabled()) {
+                    String method = response.request() != null && response.request().httpMethod() != null ? response.request().httpMethod().name() : null;
+                    String url = response.request() != null ? response.request().url() : null;
+                    log.info("Feign <- {} {} configKey={} status={} body={}", method, url, configKey, response.status(), serializeForLog(decoded));
+                }
+                return decoded;
             }
         };
+    }
+
+    private String safeRequestUrl(RequestTemplate template) {
+        String baseUrl = template != null && template.feignTarget() != null ? template.feignTarget().url() : "";
+        String path = template != null ? template.url() : "";
+        if (baseUrl == null) baseUrl = "";
+        if (path == null) path = "";
+        return baseUrl + path;
+    }
+
+    private String serializeForLog(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        try {
+            return truncate(objectMapper.writeValueAsString(value));
+        } catch (Exception e) {
+            return truncate(String.valueOf(value));
+        }
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        if (value.length() <= MAX_LOG_CHARACTERS) {
+            return value;
+        }
+        return value.substring(0, MAX_LOG_CHARACTERS) + "...(truncated,len=" + value.length() + ")";
     }
 	
 

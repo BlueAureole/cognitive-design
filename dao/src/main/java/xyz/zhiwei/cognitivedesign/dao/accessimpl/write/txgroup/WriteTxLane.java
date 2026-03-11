@@ -137,6 +137,7 @@ public class WriteTxLane {
 			final int i = index;
 			PrincipleImagery<?> principleImagery = principleImage.get(i);
 			if(isEmpty(principleImagery)) {
+				resultImageResponse.put(i, EMPTY_VALUE);
 				continue;
 			}
 			Dao<?> dao = daoBeanCache.getDaoBeanByPrincipleClass(daoBeanCache.getClassFromList(principleImagery));

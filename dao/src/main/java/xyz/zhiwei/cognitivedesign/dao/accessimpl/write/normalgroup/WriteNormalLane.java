@@ -96,6 +96,10 @@ public class WriteNormalLane {
 		List<CompletableFuture<Long>> futures = new ArrayList<>();
 		for (int i = 0; i < principleImage.size(); i++) {
 			final PrincipleImagery<?> principleImagery = principleImage.get(i);
+			if (isEmpty(principleImagery)) {
+				imageResponse.put(i, EMPTY_VALUE);
+				continue;
+			}
 			
 			Executor executorToUse = this.daoWriteExecutor;
 			Dao<?> dao = daoBeanCache.getDaoBeanByPrincipleClass(daoBeanCache.getClassFromList(principleImagery));

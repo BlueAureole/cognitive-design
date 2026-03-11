@@ -14,6 +14,7 @@ import xyz.zhiwei.cognitivedesign.dao.TransactionDao;
 import xyz.zhiwei.cognitivedesign.dao.daoimpl.BaseMsgImpl;
 import xyz.zhiwei.cognitivedesign.dao.daoimpl.methodcache.ReflectGenericUtils;
 import xyz.zhiwei.cognitivedesign.dao.daoimpl.model.Message;
+import xyz.zhiwei.cognitivedesign.dao.impl.rpc.feign.TransactionIdContext;
 import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.TransactionAdapterInterface;
 import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.TransactionRecordDao;
 import xyz.zhiwei.cognitivedesign.dao.impl.rpc.transaction.model.TransactionRecord;
@@ -123,17 +124,20 @@ public abstract class BaseMsgTxDaoImpl<P extends Principle<Long>> extends BaseMs
 	    TransactionRecordDao transactionRecordDao=getTransactionRecordDao();
 		
 		Consumer<PrincipleImagery<P>> consumer=(transactionImageryData)->{
-			
 			Integer status=null;
 			Message<Long> msg=null;
 			String msgStr=null;
 			try {
+				TransactionIdContext.setTransactionId(transactionImageryData);
 				msg=super.dispatchSaveMethod(transactionImageryData);
 				msgStr=getJson(msg);
 				status=STATUS_SUCCESS;
 			}catch (Exception e) {
 				log.error("事务后置任务执行异常，参数：{}", getJson(transactionImageryData), e);
 				status=STATUS_FALSE;
+			}finally {
+			    //清除ThreadLocal（必须！防止内存泄漏）
+			    TransactionIdContext.clear();
 			}
 			
 			//根据更新结果，补充事务完成状态		
