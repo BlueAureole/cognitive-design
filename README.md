@@ -32,5 +32,8 @@
 ### <a href="docs/framework-example.md" target="_blank" rel="noopener noreferrer">框架实例</a>
 包模块依赖图、核心类定义、以及功能实现流程图。
 
+### <a href="docs/code-organization.md" target="_blank" rel="noopener noreferrer">代码组织</a>
+当前的代码组织以功能为中心，直观表现为功能流程图。认知设计以构成关系为中心，直观表现为表象构成图。实质上是把流程图分离为标准流程图和表象构成图。构成图是比流程图更纯粹的业务逻辑描述。
+
 ### <a href="docs/performance-characteristics.md" target="_blank" rel="noopener noreferrer">表现特性</a>
 复杂度，代码可读性，性能。
